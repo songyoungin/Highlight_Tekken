@@ -37,15 +37,13 @@ class Trainer(object):
 
         for l,p in self.c2d.named_parameters():
             p.requires_grad = False
-
         self.gru = GRU(self.c2d).cuda()
-
 
     def train(self):
         # create optimizers
         cfig = get_config()
-        opt = optim.RMSprop(filter(lambda p: p.requires_grad, self.gru.parameters()),
-                         lr=self.lr,
+        opt = optim.Adam(filter(lambda p: p.requires_grad, self.gru.parameters()),
+                         lr=self.lr, betas=(self.beta1, self.beta2),
                          weight_decay=self.weight_decay)
 
         start_time = time.time()
@@ -67,21 +65,18 @@ class Trainer(object):
                 self.gru.zero_grad()
 
                 predicted = self.gru(h_video)
-
                 target = torch.ones(predicted.shape, dtype=torch.float32).cuda()
 
                 h_loss = criterion(predicted, target)  # compute loss
-
                 h_loss.backward()
                 opt.step()
 
                 self.gru.zero_grad()
 
                 predicted = self.gru(r_video)  # predicted snippet's score
-
                 target = torch.zeros(predicted.shape, dtype=torch.float32).cuda()
-                r_loss = criterion(predicted, target)  # compute loss
 
+                r_loss = criterion(predicted, target)  # compute loss
                 r_loss.backward()
                 opt.step()
 
@@ -101,9 +96,6 @@ class Trainer(object):
                 self.vis.plot('R_LOSS with lr:%.4f, b1:%.1f, b2:%.3f, wd:%.5f'
                               % (cfig.lr, cfig.beta1, cfig.beta2, cfig.weight_decay),
                               (r_loss.data).cpu().numpy())
-
-                # if step == 3: break
-                # if step == 2: break
 
             self.vis.plot("Avg loss plot", np.mean(epoch_loss))
 
@@ -176,7 +168,6 @@ class Trainer(object):
                         np.save("./samples/" + f[0][0] + ".npy", f[1])
                     print(np.load("./samples/testRV04(198,360).mp4.npy"))
                     print("checkpoint saved")
-
 
     def test(self, t_loader):
         # self.gru.eval()
